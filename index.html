@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIO 2 Capstone: Protein Sorting & Vesicular Transport 3D</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Three.js & OrbitControls CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            950: '#0a0f1a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for dark scientific theme */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        /* Ensure canvas fills container smoothly without overflow */
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            outline: none;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased overflow-hidden flex flex-col h-screen select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-sm sm:text-base font-bold tracking-tight text-white">Protein Sorting & Vesicular Transport</h1>
+                    <span class="hidden sm:inline-block text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">BIO 2 Capstone</span>
+                </div>
+                <p class="text-[11px] text-slate-400 hidden md:block">3D Endomembrane Trafficking, Coat Assembly & SNARE Fusion Dynamics</p>
+            </div>
+        </div>
+
+        <!-- Mode Navigation Tabs -->
+        <nav class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full" role="tablist">
+            <button onclick="switchTab('simulation')" id="tab-simulation" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-cyan-600 text-white shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path></svg>
+                <span>3D Simulation</span>
+            </button>
+            <button onclick="switchTab('guide')" id="tab-guide" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                <span>Instructional Guide</span>
+            </button>
+            <button onclick="switchTab('presentation')" id="tab-presentation" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                <span>Presentation</span>
+            </button>
+            <button onclick="switchTab('code')" id="tab-code" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <span>Source Code</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 relative overflow-hidden">
+
+        <!-- ===================================================================== -->
+        <!-- TAB 1: 3D SIMULATION WORKSPACE                                        -->
+        <!-- ===================================================================== -->
+        <section id="view-simulation" class="w-full h-full flex flex-col lg:flex-row relative">
+            
+            <!-- Left/Main 3D Canvas Area -->
+            <div class="relative flex-1 h-full bg-slate-950 overflow-hidden" id="canvas-wrapper">
+                <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+                <!-- Top-Left Floating Legend & Camera Helpers -->
+                <div class="absolute top-3 left-3 flex flex-col gap-2 pointer-events-none max-w-xs">
+                    <div class="glass-panel rounded-xl p-3 pointer-events-auto shadow-xl">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-300">Vesicle Coat Legend</span>
+                            <button onclick="resetCamera()" class="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-medium">Reset View</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                                <span class="text-slate-300">COPII (Anterograde)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]"></span>
+                                <span class="text-slate-300">COPI (Retrograde)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]"></span>
+                                <span class="text-slate-300">Clathrin (TGN/Lyso)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]"></span>
+                                <span class="text-slate-300">Secretory / SNARE</span>
+                            </div>
+                        </div>
+                        <div class="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Click any organelle to inspect</span>
+                            <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                                <input type="checkbox" id="toggle-labels" checked onchange="toggleLabels(this.checked)" class="rounded bg-slate-800 border-slate-600 text-cyan-500 focus:ring-0">
+                                <span>3D Labels</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D Projected HTML Labels Layer -->
+                <div id="labels-layer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+                <!-- Live Step Annotation Banner (Bottom-Center of Canvas) -->
+                <div class="absolute bottom-3 left-3 right-3 lg:right-auto lg:max-w-xl glass-panel rounded-xl p-3.5 shadow-2xl border-l-4 border-cyan-500 transition-all">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span id="live-pathway-badge" class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">All Pathways Active</span>
+                        <span id="live-step-counter" class="text-[11px] font-mono text-slate-400">Continuous Steady-State Flux</span>
+                    </div>
+                    <h3 id="live-step-title" class="text-sm font-semibold text-white">Integrated Endomembrane Trafficking</h3>
+                    <p id="live-step-desc" class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                        Newly synthesized polypeptides enter the Rough ER via Sec61, fold with BiP chaperones, and bud at ERES in COPII-coated vesicles along microtubules toward the Golgi apparatus.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right Inspector & Pathway Control Sidebar -->
+            <aside class="w-full lg:w-96 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col h-1/2 lg:h-full overflow-y-auto shrink-0 z-20">
+                
+                <!-- Simulation Playback Controls -->
+                <div class="p-4 border-b border-slate-800 bg-slate-900/50">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Simulation Controls</span>
+                        <div class="flex items-center gap-1.5">
+                            <button id="btn-play-pause" onclick="togglePlayPause()" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                                <span id="play-icon">❚❚ Pause</span>
+                            </button>
+                            <button onclick="selectPathway(0)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition">
+                                Overview
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Speed Slider -->
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-slate-400 shrink-0">Flux Rate:</span>
+                        <input type="range" id="speed-slider" min="0.2" max="2.5" step="0.1" value="1.0" oninput="updateSpeed(this.value)" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                        <span id="speed-val" class="text-xs font-mono text-cyan-400 w-9 text-right">1.0x</span>
+                    </div>
+                </div>
+
+                <!-- 5 Focused Pathways Selector -->
+                <div class="p-4 border-b border-slate-800">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Select Sorting Pathway</h2>
+                    <div class="space-y-1.5" id="pathway-buttons">
+                        <button onclick="selectPathway(1)" data-pw="1" class="pw-btn w-full text-left p-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 transition flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-purple-500/20 text-purple-400 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-200">Co-translational Translocation & Folding</div>
+                                <div class="text-[11px] text-slate-400">SRP, Signal Peptide, Sec61 Translocon, BiP</div>
+                            </div>
+                        </button>
+                        <button onclick="selectPathway(2)" data-pw="2" class="pw-btn w-full text-left p-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 transition flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-200">Anterograde Transport (ER → Golgi)</div>
+                                <div class="text-[11px] text-slate-400">COPII Coat (Sar1, Sec23/24, Sec13/31), ERGIC</div>
+                            </div>
+                        </button>
+                        <button onclick="selectPathway(3)" data-pw="3" class="pw-btn w-full text-left p-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 transition flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-amber-500/20 text-amber-400 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-200">Retrograde Retrieval (Golgi → ER)</div>
+                                <div class="text-[11px] text-slate-400">COPI Coat, ARF1-GTP, KDEL Receptor Recycling</div>
+                            </div>
+                        </button>
+                        <button onclick="selectPathway(4)" data-pw="4" class="pw-btn w-full text-left p-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 transition flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-rose-500/20 text-rose-400 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5">4</span>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-200">TGN Sorting & Lysosomal Targeting</div>
+                                <div class="text-[11px] text-slate-400">Mannose-6-Phosphate (M6P), Clathrin, Dynamin</div>
+                            </div>
+                        </button>
+                        <button onclick="selectPathway(5)" data-pw="5" class="pw-btn w-full text-left p-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 transition flex items-start gap-2.5">
+                            <span class="w-5 h-5 rounded-md bg-cyan-500/20 text-cyan-400 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5">5</span>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-200">Exocytosis & SNARE Membrane Fusion</div>
+                                <div class="text-[11px] text-slate-400">Rab GTPases, Tethering, v-SNARE/t-SNARE Zippering</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Organelle / Molecular Inspector Panel -->
+                <div class="p-4 flex-1" id="inspector-panel">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Molecular Inspector</span>
+                        <span id="inspector-tag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-400">ENDOMEMBRANE</span>
+                    </div>
+                    <h3 id="inspector-title" class="text-base font-bold text-white mb-1">Endomembrane System Overview</h3>
+                    <p id="inspector-summary" class="text-xs text-slate-300 leading-relaxed mb-3">
+                        Click any 3D organelle in the viewport (Nuclear Envelope, Rough ER, ERES, ERGIC, Cis/Medial/Trans-Golgi, TGN, Lysosome, or Plasma Membrane) or select a pathway above to inspect molecular sorting machinery.
+                    </p>
+                    
+                    <div class="bg-slate-950 rounded-xl p-3 border border-slate-800 space-y-2.5">
+                        <div>
+                            <div class="text-[10px] font-mono uppercase text-slate-500">Key Coat / Motor Machinery</div>
+                            <div id="inspector-machinery" class="text-xs text-cyan-300 font-medium mt-0.5">COPII, COPI, Clathrin, Kinesin-1 (+ end), Cytoplasmic Dynein (- end)</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono uppercase text-slate-500">Sorting Signals & Receptors</div>
+                            <div id="inspector-signals" class="text-xs text-amber-300 font-medium mt-0.5">N-terminal Signal Peptide, Di-acidic (DxE), KDEL, KKXX, Mannose-6-Phosphate (M6P)</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono uppercase text-slate-500">GTPases & SNARE Specificity</div>
+                            <div id="inspector-gtpase" class="text-xs text-emerald-300 font-medium mt-0.5">Sar1, ARF1, Rab1/Rab2, Rab6, Rab8/Rab27, Sec22b/Syntaxin-5, VAMP/SNAP-25</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 2: INSTRUCTIONAL LAB GUIDE & SELF-ASSESSMENT                      -->
+        <!-- ===================================================================== -->
+        <section id="view-guide" class="hidden w-full h-full overflow-y-auto bg-slate-950 p-4 sm:p-8">
+            <div class="max-w-5xl mx-auto space-y-8 pb-12">
+                
+                <!-- Header Banner -->
+                <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 border border-slate-800 rounded-2xl p-6 sm:p-8">
+                    <span class="text-xs font-mono uppercase tracking-widest text-cyan-400">BIO 2 Laboratory & Curriculum Module</span>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-white mt-1">Instructional Guide: Intracellular Protein Sorting</h2>
+                    <p class="text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
+                        This interactive module guides students through the molecular logic of eukaryotic secretory and endocytic trafficking—from signal peptide recognition at the Rough ER to SNARE-mediated membrane fusion at the plasma membrane.
+                    </p>
+                </div>
+
+                <!-- Learning Objectives & Checkpoint Protocol -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                        <h3 class="text-base font-bold text-white flex items-center gap-2 mb-3">
+                            <span class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-mono">01</span>
+                            Student Learning Objectives
+                        </h3>
+                        <ul class="space-y-2.5 text-xs sm:text-sm text-slate-300">
+                            <li class="flex items-start gap-2">
+                                <span class="text-cyan-400 font-bold">•</span>
+                                <span><strong>Co-translational Entry:</strong> Explain how SRP arrests translation and docks ribosomes onto the Sec61 translocon complex.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-cyan-400 font-bold">•</span>
+                                <span><strong>Vesicle Budding & Coat Selection:</strong> Distinguish the roles of Sar1/COPII (anterograde), ARF1/COPI (retrograde), and Clathrin/AP1/GGA (TGN-to-endosome).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-cyan-400 font-bold">•</span>
+                                <span><strong>Directional Cytoskeletal Transport:</strong> Contrast Dynein-driven minus-end transport (ER → Golgi) with Kinesin-driven plus-end transport (TGN → PM).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-cyan-400 font-bold">•</span>
+                                <span><strong>Target Specificity & Fusion:</strong> Describe how Rab GTPases, tethering factors, and four-helix v-SNARE/t-SNARE bundles overcome membrane hydration barriers.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                        <h3 class="text-base font-bold text-white flex items-center gap-2 mb-3">
+                            <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-mono">02</span>
+                            Guided 3D Exploration Protocol
+                        </h3>
+                        <ol class="space-y-2.5 text-xs sm:text-sm text-slate-300 list-decimal list-inside">
+                            <li>Switch to <strong>3D Simulation</strong> and click the <strong>Rough ER</strong> to observe membrane-bound ribosomes and Sec61 channels.</li>
+                            <li>Activate <strong>Pathway 2 (Anterograde)</strong> and trace green COPII-coated vesicles budding from ERES and fusing into the ERGIC/Cis-Golgi.</li>
+                            <li>Activate <strong>Pathway 3 (Retrograde)</strong> to observe yellow COPI vesicles returning escaped ER-resident chaperones (BiP/PDI) via KDEL receptors.</li>
+                            <li>Activate <strong>Pathway 4 (Lysosomal)</strong> to follow red Clathrin-coated vesicles pinched off by Dynamin toward Late Endosomes.</li>
+                            <li>Activate <strong>Pathway 5 (Exocytosis)</strong> to inspect SNARE zippering at the Plasma Membrane.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Molecular Machinery Reference Matrix -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                    <div class="p-5 border-b border-slate-800">
+                        <h3 class="text-base font-bold text-white">Molecular Sorting Machinery Reference Table</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Summary of vesicle coats, small GTPases, sorting motifs, and cognate receptors across compartments.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-950 text-slate-400 border-b border-slate-800 font-mono uppercase text-[11px]">
+                                    <th class="p-3.5">Transport Step</th>
+                                    <th class="p-3.5">Coat Complex</th>
+                                    <th class="p-3.5">Initiating GTPase</th>
+                                    <th class="p-3.5">Sorting Signal</th>
+                                    <th class="p-3.5">Cargo Receptor / Adaptor</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-300">
+                                <tr class="hover:bg-slate-850/60">
+                                    <td class="p-3.5 font-semibold text-emerald-400">ER (ERES) → ERGIC / Cis-Golgi</td>
+                                    <td class="p-3.5">COPII (Sec23/24, Sec13/31)</td>
+                                    <td class="p-3.5 font-mono">Sar1-GTP (GEF: Sec12)</td>
+                                    <td class="p-3.5">Di-acidic (DxE), Di-hydrophobic</td>
+                                    <td class="p-3.5">Sec24 subunit, ERGIC-53</td>
+                                </tr>
+                                <tr class="hover:bg-slate-850/60">
+                                    <td class="p-3.5 font-semibold text-amber-400">Cis-Golgi / ERGIC → ER</td>
+                                    <td class="p-3.5">COPI (Coatomer α-ζ)</td>
+                                    <td class="p-3.5 font-mono">ARF1-GTP (GEF: GBF1)</td>
+                                    <td class="p-3.5">C-terminal KDEL (soluble), KKXX (membrane)</td>
+                                    <td class="p-3.5">KDEL Receptor (Erd2)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-850/60">
+                                    <td class="p-3.5 font-semibold text-rose-400">Trans-Golgi Network → Endosome</td>
+                                    <td class="p-3.5">Clathrin Triskelion + AP-1 / GGA</td>
+                                    <td class="p-3.5 font-mono">ARF1-GTP (+ Dynamin scission)</td>
+                                    <td class="p-3.5">Mannose-6-Phosphate (M6P), YXXΦ</td>
+                                    <td class="p-3.5">M6P Receptor (MPR)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-850/60">
+                                    <td class="p-3.5 font-semibold text-cyan-400">TGN → Plasma Membrane</td>
+                                    <td class="p-3.5">Non-clathrin / Tubular carriers</td>
+                                    <td class="p-3.5 font-mono">Rab8, Rab11, Rab27</td>
+                                    <td class="p-3.5">GPI-anchors, Lipid rafts, Aggregate sorting</td>
+                                    <td class="p-3.5">Exocyst / Synaptotagmin</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Interactive Formative Self-Assessment Quiz -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Self-Assessment Checkpoint Quiz</h3>
+                            <p class="text-xs text-slate-400">Test your mastery of endomembrane sorting mechanisms with instant explanatory feedback.</p>
+                        </div>
+                        <span id="quiz-score" class="text-xs font-mono px-3 py-1 rounded-full bg-slate-800 text-cyan-400">Score: 0 / 3</span>
+                    </div>
+
+                    <div id="quiz-container" class="space-y-5"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 3: TECHNICAL PRESENTATION DECK (9 SLIDES)                         -->
+        <!-- ===================================================================== -->
+        <section id="view-presentation" class="hidden w-full h-full flex flex-col bg-slate-950 p-4 sm:p-8 overflow-y-auto">
+            <div class="max-w-5xl w-full mx-auto flex-1 flex flex-col justify-between gap-4">
+                
+                <!-- Slide Canvas -->
+                <div id="slide-stage" class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-2xl flex flex-col justify-between relative overflow-hidden">
+                    <!-- Decorative Top Gradient Bar -->
+                    <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-emerald-500"></div>
+                    
+                    <div id="slide-content" class="my-auto">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Slide Footer Metadata -->
+                    <div class="pt-6 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500 font-mono">
+                        <span>BIO 2 CAPSTONE • ENDOMEMBRANE DYNAMICS</span>
+                        <span id="slide-indicator">SLIDE 1 / 9</span>
+                    </div>
+                </div>
+
+                <!-- Slide Controls -->
+                <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl p-3">
+                    <button onclick="prevSlide()" id="btn-prev-slide" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold text-white transition flex items-center gap-1.5">
+                        <span>← Previous</span>
+                    </button>
+                    
+                    <!-- Slide Dots -->
+                    <div id="slide-dots" class="flex items-center gap-1.5 overflow-x-auto px-2"></div>
+
+                    <button onclick="nextSlide()" id="btn-next-slide" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-xs font-semibold text-white transition flex items-center gap-1.5">
+                        <span>Next Slide →</span>
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 4: SOURCE CODE VIEWER & STANDALONE EXPORT                         -->
+        <!-- ===================================================================== -->
+        <section id="view-code" class="hidden w-full h-full flex flex-col bg-slate-950 p-4 sm:p-6 overflow-hidden">
+            <div class="max-w-6xl w-full mx-auto flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                <div class="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-900/90">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <span>Standalone Application Source Code</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Single-File HTML5 / Three.js r128</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Complete self-contained architecture including procedural 3D organelle meshes, kinematic vesicle splines, and interactive curriculum modules.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="copySourceCode()" id="btn-copy-code" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5">
+                            <span>Copy Source</span>
+                        </button>
+                        <button onclick="downloadSourceCode()" class="px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-cyan-500/20">
+                            <span>Download .HTML</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto p-4 bg-slate-950 font-mono text-xs text-slate-300 leading-relaxed">
+                    <pre id="source-code-display" class="whitespace-pre-wrap break-words"></pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- APPLICATION LOGIC, 3D ENGINE & CURRICULUM DATA                            -->
+    <!-- ========================================================================= -->
+    <script>
+        /**
+         * 1. BIOLOGICAL KNOWLEDGE BASE & PATHWAY DEFINITIONS
+         */
+        const ORGANELLE_DATA = {
+            nucleus: {
+                tag: "GENOMIC & TRANSLATIONAL ORIGIN",
+                title: "Nuclear Envelope & Pore Complexes",
+                summary: "Double-membrane boundary continuous with the Rough ER. mRNA transcripts exit through Nuclear Pore Complexes (NPCs) to engage cytosolic ribosomes.",
+                machinery: "Nuclear Pore Complex (Nucleoporins), Exportin-1, Ran-GTP gradient",
+                signals: "Nuclear Export Signals (NES) on mRNP complexes",
+                gtpase: "Ran-GTP / Ran-GDP gradient"
+            },
+            rer: {
+                tag: "CO-TRANSLATIONAL TRANSLOCATION",
+                title: "Rough Endoplasmic Reticulum (RER)",
+                summary: "Flattened membrane cisternae studded with 80S ribosomes. Signal Recognition Particle (SRP) halts translation of signal-peptide nascent chains and docks onto the SRP Receptor, threading polypeptides through the Sec61 translocon.",
+                machinery: "80S Ribosomes, SRP, SRP Receptor, Sec61αβγ Translocon, Signal Peptidase, OST (N-glycosylation)",
+                signals: "N-terminal hydrophobic Signal Sequence (16–30 aa), Stop-Transfer Anchor sequences",
+                gtpase: "SRP54 & SRα (Reciprocal GTP hydrolysis)"
+            },
+            eres: {
+                tag: "ANTEROGRADE BUDDING ZONE",
+                title: "ER Exit Sites (ERES)",
+                summary: "Specialized ribosome-free subdomains of the ER where folded secretory cargo concentrates for export. Membrane-bound Sec12 activates Sar1-GTP, exposing its amphipathic N-terminal helix to initiate membrane curvature.",
+                machinery: "COPII Inner Coat (Sec23/Sec24 heterodimer) & Outer Cage (Sec13/Sec31)",
+                signals: "Di-acidic (DxE) and hydrophobic export motifs recognized by Sec24",
+                gtpase: "Sar1-GTP (activated by Sec12 GEF; hydrolyzed via Sec23 GAP)"
+            },
+            ergic: {
+                tag: "SORTING INTERMEDIATE",
+                title: "Vesicular-Tubular Clusters (ERGIC)",
+                summary: "Dynamic tubulovesicular membrane clusters formed by homotypic fusion of COPII vesicles. Serves as the primary triage hub where retrograde COPI vesicles bud off to return escaped ER proteins while anterograde cargo tracks along microtubules via Dynein.",
+                machinery: "Cytoplasmic Dynein (minus-end motor), COPI coatomer, p115/GM130 tethers",
+                signals: "KDEL & KKXX retrieval motifs sorted into nascent COPI buds",
+                gtpase: "Rab1, Rab2, and ARF1-GTP"
+            },
+            cisGolgi: {
+                tag: "CIS-FACE RECEIVING NETWORK",
+                title: "Cis-Golgi Network (CGN)",
+                summary: "The entry face of the Golgi stack facing the ER. Receives cargo from ERGIC and initiates O-linked glycosylation as well as phosphorylation of high-mannose oligosaccharides on future lysosomal hydrolases.",
+                machinery: "TRAPP I tethering complex, Golgins (GM130), GlcNAc-1-phosphotransferase",
+                signals: "Signal patch on lysosomal hydrolases (targeted for M6P tagging)",
+                gtpase: "Rab1, Rab6, Sec22b (v-SNARE) / Syntaxin-5 (t-SNARE)"
+            },
+            medialGolgi: {
+                tag: "OLIGOSACCHARIDE PROCESSING",
+                title: "Medial & Trans Golgi Cisternae",
+                summary: "Sequential enzymatic stacks (Cisternal Maturation model) containing Golgi Mannosidase I/II and GlcNAc/Galactosyltransferases that remodel N-linked glycans into complex oligosaccharides.",
+                machinery: "COG (Conserved Oligomeric Golgi) tethering complex, COPI intra-Golgi recycling vesicles",
+                signals: "Transmembrane domain length (lipids/membrane thickness sorting)",
+                gtpase: "ARF1-GTP, Rab6, Rab33b"
+            },
+            tgn: {
+                tag: "MAJOR SORTING STATION",
+                title: "Trans-Golgi Network (TGN)",
+                summary: "The exit face of the Golgi apparatus that sorts proteins into three distinct routes: (1) Mannose-6-Phosphate receptor binding into Clathrin-coated vesicles for lysosomes, (2) Regulated secretory granules, and (3) Constitutive exocytic carriers.",
+                machinery: "Clathrin triskelions, AP-1 & GGA adaptors, Dynamin GTPase, Kinesin-1 (+ end motor)",
+                signals: "Mannose-6-Phosphate (M6P), Tyrosine-based (YXXΦ) & Dileucine (D/ExxxLL) motifs",
+                gtpase: "ARF1-GTP, Dynamin (pinchase), Rab8, Rab11"
+            },
+            lysosome: {
+                tag: "DEGRADATIVE ENDOMEMBRANE",
+                title: "Late Endosome & Lysosome",
+                summary: "Acidic organelles (pH ~4.8 maintained by V-type H+-ATPase). Low pH induces dissociation of acid hydrolases from Mannose-6-Phosphate Receptors (MPR), allowing MPRs to recycle back to the TGN via retromer/COPI-like tubules.",
+                machinery: "V-ATPase proton pump, Acid Hydrolases (Cathepsins), HOPS tethering complex",
+                signals: "De-phosphorylation of M6P prevents retrograde recapture of hydrolases",
+                gtpase: "Rab7 (Late Endosome/Lysosome identity), Syntaxin-7 / VAMP7"
+            },
+            plasmaMembrane: {
+                tag: "EXOCYTIC TARGET MEMBRANE",
+                title: "Plasma Membrane & Exocytic Zone",
+                summary: "Final destination for secreted proteins and integral plasma membrane receptors. Secretory vesicles tether via the Exocyst complex, followed by four-helix v-SNARE/t-SNARE zippering that drives lipid bilayer fusion.",
+                machinery: "Exocyst tethering complex, Munc18, Synaptotagmin (Ca2+ sensor in regulated pathway)",
+                signals: "Constitutive bulk-flow vs. Ca2+-triggered regulated exocytosis",
+                gtpase: "Rab8 / Rab27, VAMP2 (v-SNARE) + Syntaxin-1 & SNAP-25 (t-SNAREs)"
+            }
+        };
+
+        const PATHWAY_INFO = {
+            0: {
+                badge: "All Pathways Active",
+                counter: "Continuous Steady-State Flux",
+                title: "Integrated Endomembrane Trafficking",
+                desc: "Newly synthesized polypeptides enter the Rough ER via Sec61, fold with BiP chaperones, and bud at ERES in COPII-coated vesicles along microtubules toward the Golgi apparatus.",
+                organelle: null
+            },
+            1: {
+                badge: "Pathway 1 • ER Entry",
+                counter: "Step 1 of 5 • Co-Translational Translocation",
+                title: "SRP Docking & Sec61 Translocon Threading",
+                desc: "Cytosolic ribosomes translating an N-terminal hydrophobic signal sequence are bound by Signal Recognition Particle (SRP), pausing elongation until docking at the ER membrane Sec61 channel.",
+                organelle: "rer"
+            },
+            2: {
+                badge: "Pathway 2 • Anterograde",
+                counter: "Step 2 of 5 • ERES → ERGIC → Cis-Golgi",
+                title: "COPII-Coated Vesicle Budding & Minus-End Microtubule Transport",
+                desc: "Sec12 exchanges GDP for GTP on Sar1, recruiting Sec23/24 cargo adaptors and the Sec13/31 outer polyhedral cage. Green COPII vesicles uncoat and fuse into ERGIC, moving along microtubules via Dynein.",
+                organelle: "eres"
+            },
+            3: {
+                badge: "Pathway 3 • Retrograde",
+                counter: "Step 3 of 5 • Cis-Golgi / ERGIC → Rough ER",
+                title: "COPI-Coated Retrieval of KDEL/KKXX Resident Proteins",
+                desc: "Mildly acidic pH (~6.7) in the Cis-Golgi promotes high-affinity binding of escaped ER chaperones (BiP, PDI) to the KDEL receptor, triggering ARF1-GTP recruitment of amber COPI coats for retrograde return.",
+                organelle: "cisGolgi"
+            },
+            4: {
+                badge: "Pathway 4 • Lysosomal Sorting",
+                counter: "Step 4 of 5 • TGN → Late Endosome / Lysosome",
+                title: "Mannose-6-Phosphate Recognition & Clathrin/Dynamin Scission",
+                desc: "At the Trans-Golgi Network (TGN), M6P-tagged hydrolases bind M6P receptors. GGA/AP-1 adaptors assemble a red Clathrin lattice, and Dynamin spirals constrict the vesicle neck via GTP hydrolysis.",
+                organelle: "tgn"
+            },
+            5: {
+                badge: "Pathway 5 • Exocytosis",
+                counter: "Step 5 of 5 • TGN → Plasma Membrane Fusion",
+                title: "Rab Tethering & v-SNARE / t-SNARE Four-Helix Zippering",
+                desc: "Secretory vesicles travel along microtubules via Kinesin (+ end). Rab GTPases engage Exocyst tethers, allowing vesicle VAMP (v-SNARE) to zipper with Syntaxin/SNAP-25 (t-SNAREs) and release cargo.",
+                organelle: "plasmaMembrane"
+            }
+        };
+
+        /**
+         * 2. THREE.JS 3D SCENE SETUP & PROCEDURAL ENDOMEMBRANE ARCHITECTURE
+         */
+        let scene, camera, renderer, controls;
+        let organelleMeshes = {};
+        let organelleHighlights = {};
+        let labelAnchors = [];
+        let activeVesicles = [];
+        let ribosomeParticles = [];
+        let isPlaying = true;
+        let simSpeed = 1.0;
+        let currentPathway = 0;
+        let selectedOrganelleKey = null;
+        let show3DLabels = true;
+        const clock = new THREE.Clock();
+
+        // Spline paths for vesicular transport
+        let curves = {};
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene with subtle deep biological gradient fog
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x060b14);
+            scene.fog = new THREE.FogExp2(0x060b14, 0.014);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 200);
+            camera.position.set(0, 14, 34);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.15;
+            container.appendChild(renderer.domElement);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.minDistance = 10;
+            controls.maxDistance = 60;
+            controls.maxPolarAngle = Math.PI * 0.85;
+
+            // Three-Point Scientific Lighting
+            const ambientLight = new THREE.AmbientLight(0x334155, 1.3);
+            scene.add(ambientLight);
+
+            const keyLight = new THREE.DirectionalLight(0xe0f2fe, 1.8);
+            keyLight.position.set(15, 25, 20);
+            scene.add(keyLight);
+
+            const fillLight = new THREE.DirectionalLight(0x818cf8, 0.9);
+            fillLight.position.set(-20, 10, -15);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.PointLight(0x22d3ee, 1.4, 50);
+            rimLight.position.set(0, -10, 15);
+            scene.add(rimLight);
+
+            // Build 3D Cellular Environment & Organelles
+            buildCytosolAndMicrotubules();
+            buildOrganelles();
+            buildTransportCurves();
+            spawnInitialVesicles();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('pointerdown', onCanvasClick);
+
+            // Start Animation Loop
+            animate();
+        }
+
+        function buildCytosolAndMicrotubules() {
+            // Subtle cellular boundary grid floor for spatial orientation
+            const gridHelper = new THREE.GridHelper(48, 24, 0x1e293b, 0x0f172a);
+            gridHelper.position.y = -6.5;
+            scene.add(gridHelper);
+
+            // Microtubule Cytoskeletal Tracks (Glowing filaments guiding vesicles)
+            const mtMaterial = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.22
+            });
+
+            const mtRoutes = [
+                // ER to Golgi track
+                [new THREE.Vector3(-8.5, 0, 0), new THREE.Vector3(-4.5, 0.8, 0.5), new THREE.Vector3(-1.2, 0.2, 0)],
+                // Golgi to Plasma Membrane track
+                [new THREE.Vector3(3.5, 0.3, 0), new THREE.Vector3(8.5, 1.2, -0.5), new THREE.Vector3(14.5, 0.5, 0)],
+                // TGN to Lysosome track
+                [new THREE.Vector3(3.2, -0.5, 1.2), new THREE.Vector3(5.5, -2.5, 4.2), new THREE.Vector3(7.5, -3.5, 6.5)]
+            ];
+
+            mtRoutes.forEach(pts => {
+                const curve = new THREE.CatmullRomCurve3(pts);
+                const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.05, 8, false);
+                const mesh = new THREE.Mesh(tubeGeo, mtMaterial);
+                scene.add(mesh);
+            });
+        }
+
+        function registerOrganelle(key, mesh, labelText, labelOffset = new THREE.Vector3(0, 2.2, 0)) {
+            mesh.userData = { organelleKey: key };
+            mesh.traverse(child => {
+                if (child.isMesh) child.userData = { organelleKey: key };
+            });
+            organelleMeshes[key] = mesh;
+            scene.add(mesh);
+
+            // Create HTML 3D label anchor
+            const labelEl = document.createElement('div');
+            labelEl.className = 'absolute px-2 py-0.5 rounded-md bg-slate-900/85 border border-slate-700/80 text-[10px] font-semibold text-slate-200 whitespace-nowrap shadow-md transition-opacity duration-200 cursor-pointer pointer-events-auto hover:border-cyan-400 hover:text-cyan-300';
+            labelEl.textContent = labelText;
+            labelEl.onclick = () => inspectOrganelle(key);
+            document.getElementById('labels-layer').appendChild(labelEl);
+
+            labelAnchors.push({
+                key,
+                position: mesh.position.clone().add(labelOffset),
+                element: labelEl
+            });
+        }
+
+        function buildOrganelles() {
+            // 1. NUCLEUS (Left-most origin, x = -15.5)
+            const nucleusGroup = new THREE.Group();
+            nucleusGroup.position.set(-15.5, 0, 0);
+            const nucGeo = new THREE.SphereGeometry(3.8, 32, 32, 0, Math.PI * 1.5);
+            const nucMat = new THREE.MeshStandardMaterial({
+                color: 0x4f46e5,
+                roughness: 0.4,
+                metalness: 0.1,
+                side: THREE.DoubleSide
+            });
+            const nucMesh = new THREE.Mesh(nucGeo, nucMat);
+            nucMesh.rotation.y = -Math.PI / 4;
+            nucleusGroup.add(nucMesh);
+
+            // Nucleolus core
+            const nucleolus = new THREE.Mesh(
+                new THREE.SphereGeometry(1.4, 24, 24),
+                new THREE.MeshStandardMaterial({ color: 0x818cf8, emissive: 0x312e81, roughness: 0.3 })
+            );
+            nucleusGroup.add(nucleolus);
+            registerOrganelle('nucleus', nucleusGroup, 'Nucleus', new THREE.Vector3(0, 4.3, 0));
+
+            // 2. ROUGH ENDOPLASMIC RETICULUM (RER Cisternae sheets, x = -10.5)
+            const rerGroup = new THREE.Group();
+            rerGroup.position.set(-10.5, 0, 0);
+            const rerMat = new THREE.MeshStandardMaterial({
+                color: 0x7c3aed,
+                roughness: 0.45,
+                metalness: 0.1,
+                emissive: 0x2e1065,
+                emissiveIntensity: 0.35
+            });
+
+            for (let i = -2; i <= 2; i++) {
+                const sheetGeo = new THREE.BoxGeometry(0.45, 5.2 - Math.abs(i) * 0.4, 6.2 - Math.abs(i) * 0.5);
+                // Curve the sheets slightly using vertex displacement
+                const pos = sheetGeo.attributes.position;
+                for (let v = 0; v < pos.count; v++) {
+                    const z = pos.getZ(v);
+                    const y = pos.getY(v);
+                    pos.setX(v, pos.getX(v) - (z * z) * 0.04 - (y * y) * 0.02);
+                }
+                sheetGeo.computeVertexNormals();
+                const sheet = new THREE.Mesh(sheetGeo, rerMat);
+                sheet.position.x = i * 0.95;
+                rerGroup.add(sheet);
+
+                // Bound 80S Ribosomes studding the RER membrane
+                const riboGeo = new THREE.SphereGeometry(0.14, 10, 10);
+                const riboMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0x831843, emissiveIntensity: 0.4 });
+                for (let r = 0; r < 14; r++) {
+                    const ribo = new THREE.Mesh(riboGeo, riboMat);
+                    const ry = (Math.random() - 0.5) * 4.2;
+                    const rz = (Math.random() - 0.5) * 5.0;
+                    ribo.position.set(i * 0.95 + 0.28 - (rz * rz) * 0.04, ry, rz);
+                    rerGroup.add(ribo);
+                    ribosomeParticles.push({ mesh: ribo, baseScale: 1 });
+                }
+            }
+            registerOrganelle('rer', rerGroup, 'Rough ER (RER)', new THREE.Vector3(0, 3.4, 0));
+
+            // 3. ER EXIT SITES (ERES, x = -7.6)
+            const eresGroup = new THREE.Group();
+            eresGroup.position.set(-7.6, 0.3, 0.4);
+            const eresMesh = new THREE.Mesh(
+                new THREE.TorusKnotGeometry(0.65, 0.22, 48, 12, 2, 3),
+                new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x064e3b, roughness: 0.3 })
+            );
+            eresGroup.add(eresMesh);
+            registerOrganelle('eres', eresGroup, 'ER Exit Site (ERES)', new THREE.Vector3(0, 1.6, 0));
+
+            // 4. ERGIC (Vesicular-Tubular Clusters, x = -4.5)
+            const ergicGroup = new THREE.Group();
+            ergicGroup.position.set(-4.5, 0.8, 0.5);
+            const ergicMat = new THREE.MeshStandardMaterial({ color: 0x14b8a6, emissive: 0x115e59, roughness: 0.35 });
+            const tubule1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.4, 8, 16), ergicMat);
+            tubule1.rotation.z = Math.PI / 3;
+            const tubule2 = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), ergicMat);
+            tubule2.position.set(0.4, -0.4, 0.3);
+            ergicGroup.add(tubule1, tubule2);
+            registerOrganelle('ergic', ergicGroup, 'ERGIC Cluster', new THREE.Vector3(0, 1.6, 0));
+
+            // 5. GOLGI APPARATUS: CIS-GOLGI NETWORK (x = -1.2)
+            const cisMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0c4a6e, roughness: 0.35 });
+            const cisMesh = createGolgiCisterna(4.8, 5.4, 0.36, cisMat);
+            cisMesh.position.set(-1.2, 0.2, 0);
+            registerOrganelle('cisGolgi', cisMesh, 'Cis-Golgi (CGN)', new THREE.Vector3(-0.3, 3.1, 0));
+
+            // 6. GOLGI APPARATUS: MEDIAL & TRANS CISTERNAE (x = 0.2 to 1.4)
+            const medialGroup = new THREE.Group();
+            medialGroup.position.set(0.7, 0.2, 0);
+            const medialMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x1e3a8a, roughness: 0.35 });
+            const c2 = createGolgiCisterna(4.4, 5.0, 0.34, medialMat);
+            c2.position.x = -0.6;
+            const c3 = createGolgiCisterna(4.2, 4.8, 0.34, medialMat);
+            c3.position.x = 0.6;
+            medialGroup.add(c2, c3);
+            registerOrganelle('medialGolgi', medialGroup, 'Medial/Trans Golgi', new THREE.Vector3(0, 2.9, 0));
+
+            // 7. TRANS-GOLGI NETWORK (TGN, x = 2.6)
+            const tgnMat = new THREE.MeshStandardMaterial({ color: 0x6366f1, emissive: 0x312e81, roughness: 0.3 });
+            const tgnMesh = createGolgiCisterna(4.6, 5.2, 0.38, tgnMat);
+            tgnMesh.position.set(2.6, 0.2, 0);
+            registerOrganelle('tgn', tgnMesh, 'Trans-Golgi (TGN)', new THREE.Vector3(0.4, 3.1, 0));
+
+            // 8. LATE ENDOSOME / LYSOSOME (x = 7.5, y = -3.5, z = 6.5)
+            const lysoGroup = new THREE.Group();
+            lysoGroup.position.set(7.5, -3.5, 6.5);
+            const lysoSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(1.75, 32, 32),
+                new THREE.MeshStandardMaterial({
+                    color: 0xe11d48,
+                    emissive: 0x881337,
+                    emissiveIntensity: 0.45,
+                    roughness: 0.25,
+                    transparent: true,
+                    opacity: 0.9
+                })
+            );
+            lysoGroup.add(lysoSphere);
+            // Internal acid hydrolase granules
+            const hydroMat = new THREE.MeshBasicMaterial({ color: 0xfda4af });
+            for (let h = 0; h < 8; h++) {
+                const dot = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), hydroMat);
+                dot.position.set((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6);
+                lysoGroup.add(dot);
+            }
+            registerOrganelle('lysosome', lysoGroup, 'Late Endosome / Lysosome', new THREE.Vector3(0, 2.3, 0));
+
+            // 9. PLASMA MEMBRANE (Right boundary curved lipid bilayer, x = 15.2)
+            const pmGroup = new THREE.Group();
+            pmGroup.position.set(15.2, 0, 0);
+            const pmGeo = new THREE.CylinderGeometry(14, 14, 11, 40, 1, true, Math.PI * 0.72, Math.PI * 0.56);
+            const pmMat = new THREE.MeshStandardMaterial({
+                color: 0x06b6d4,
+                emissive: 0x164e63,
+                emissiveIntensity: 0.4,
+                roughness: 0.3,
+                metalness: 0.2,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.72
+            });
+            const pmMesh = new THREE.Mesh(pmGeo, pmMat);
+            pmMesh.position.x = -13.5;
+            pmGroup.add(pmMesh);
+
+            // Target t-SNARE docking complexes embedded on inner plasma membrane
+            const tSnareMat = new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0891b2 });
+            [-1.8, 0.5, 2.6].forEach(yPos => {
+                const snare = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.08, 10, 20), tSnareMat);
+                snare.rotation.y = Math.PI / 2;
+                snare.position.set(0.35, yPos, 0);
+                pmGroup.add(snare);
+            });
+            registerOrganelle('plasmaMembrane', pmGroup, 'Plasma Membrane', new THREE.Vector3(0.5, 5.8, 0));
+        }
+
+        function createGolgiCisterna(height, depth, thickness, material) {
+            const geo = new THREE.BoxGeometry(thickness, height, depth, 4, 12, 12);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const y = pos.getY(i);
+                const z = pos.getZ(i);
+                // Bowing curvature characteristic of Golgi stacks
+                const curveOffset = (z * z) * 0.055 + (y * y) * 0.025;
+                pos.setX(i, pos.getX(i) - curveOffset);
+            }
+            geo.computeVertexNormals();
+            return new THREE.Mesh(geo, material);
+        }
+
+        function buildTransportCurves() {
+            // Pathway 1: Nucleus -> RER Translocon
+            curves[1] = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-13.2, 0.5, 0),
+                new THREE.Vector3(-11.8, 0.5, 0.2),
+                new THREE.Vector3(-10.2, 0.4, 0.2)
+            ]);
+
+            // Pathway 2: Anterograde ERES -> ERGIC -> Cis-Golgi (COPII)
+            curves[2] = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-7.6, 0.3, 0.4),
+                new THREE.Vector3(-6.0, 0.7, 0.6),
+                new THREE.Vector3(-4.5, 0.8, 0.5),
+                new THREE.Vector3(-2.8, 0.5, 0.2),
+                new THREE.Vector3(-1.3, 0.2, 0)
+            ]);
+
+            // Pathway 3: Retrograde Cis-Golgi -> ERGIC -> RER (COPI)
+            curves[3] = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-1.3, -1.2, -0.6),
+                new THREE.Vector3(-4.2, -1.0, -0.8),
+                new THREE.Vector3(-7.2, -0.8, -0.5),
+                new THREE.Vector3(-9.5, -0.6, -0.3)
+            ]);
+
+            // Pathway 4: TGN -> Late Endosome / Lysosome (Clathrin + M6P)
+            curves[4] = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(2.8, -0.5, 0.8),
+                new THREE.Vector3(4.5, -1.6, 2.8),
+                new THREE.Vector3(6.2, -2.7, 4.8),
+                new THREE.Vector3(7.3, -3.4, 6.2)
+            ]);
+
+            // Pathway 5: TGN -> Plasma Membrane Exocytosis (Secretory + SNAREs)
+            curves[5] = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(2.8, 0.4, 0),
+                new THREE.Vector3(6.5, 0.9, -0.3),
+                new THREE.Vector3(10.8, 0.7, 0.1),
+                new THREE.Vector3(15.1, 0.5, 0)
+            ]);
+        }
+
+        function createCoatedVesicleMesh(pathwayId) {
+            const group = new THREE.Group();
+            const configs = {
+                1: { core: 0xc084fc, coat: 0xf472b6, wire: false, radius: 0.24 }, // mRNA/polypeptide complex
+                2: { core: 0x34d399, coat: 0x10b981, wire: true, radius: 0.34 },  // COPII cage
+                3: { core: 0xfbbf24, coat: 0xf59e0b, wire: true, radius: 0.32 },  // COPI coatomer
+                4: { core: 0xfb7185, coat: 0xe11d48, wire: true, radius: 0.36 },  // Clathrin triskelion cage
+                5: { core: 0x38bdf8, coat: 0x22d3ee, wire: false, radius: 0.38 }  // Secretory granule + v-SNAREs
+            };
+
+            const cfg = configs[pathwayId];
+            // Lipid membrane core
+            const core = new THREE.Mesh(
+                new THREE.SphereGeometry(cfg.radius * 0.78, 16, 16),
+                new THREE.MeshStandardMaterial({ color: cfg.core, emissive: cfg.core, emissiveIntensity: 0.4, roughness: 0.2 })
+            );
+            group.add(core);
+
+            // Outer protein coat lattice (Icosahedral cage representing COPII/COPI/Clathrin)
+            if (cfg.wire) {
+                const cage = new THREE.Mesh(
+                    new THREE.IcosahedronGeometry(cfg.radius, 1),
+                    new THREE.MeshBasicMaterial({ color: cfg.coat, wireframe: true })
+                );
+                group.add(cage);
+            } else if (pathwayId === 5) {
+                // Add protruding v-SNARE spikes on secretory vesicles
+                const snareGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.22, 6);
+                const snareMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+                for (let s = 0; s < 4; s++) {
+                    const spike = new THREE.Mesh(snareGeo, snareMat);
+                    spike.rotation.z = (s * Math.PI) / 2;
+                    spike.position.set(Math.cos(s) * 0.35, Math.sin(s) * 0.35, 0);
+                    group.add(spike);
+                }
+            }
+
+            scene.add(group);
+            return group;
+        }
+
+        function spawnInitialVesicles() {
+            for (let pw = 1; pw <= 5; pw++) {
+                const count = pw === 1 ? 2 : 3;
+                for (let i = 0; i < count; i++) {
+                    activeVesicles.push({
+                        pathway: pw,
+                        progress: i / count,
+                        speed: 0.16 + (pw * 0.015),
+                        mesh: createCoatedVesicleMesh(pw)
+                    });
+                }
+            }
+        }
+
+        /**
+         * 3. INTERACTIVE PATHWAY SELECTION & ORGANELLE INSPECTION
+         */
+        function selectPathway(pwId) {
+            currentPathway = pwId;
+            const info = PATHWAY_INFO[pwId];
+
+            // Update Banner UI
+            document.getElementById('live-pathway-badge').textContent = info.badge;
+            document.getElementById('live-step-counter').textContent = info.counter;
+            document.getElementById('live-step-title').textContent = info.title;
+            document.getElementById('live-step-desc').textContent = info.desc;
+
+            // Highlight active button
+            document.querySelectorAll('.pw-btn').forEach(btn => {
+                const id = parseInt(btn.getAttribute('data-pw'));
+                if (id === pwId) {
+                    btn.classList.add('border-cyan-500', 'bg-slate-800');
+                    btn.classList.remove('border-slate-800', 'bg-slate-850');
+                } else {
+                    btn.classList.remove('border-cyan-500', 'bg-slate-800');
+                    btn.classList.add('border-slate-800', 'bg-slate-850');
+                }
+            });
+
+            // Focus camera smoothly & inspect primary organelle
+            if (info.organelle) {
+                inspectOrganelle(info.organelle);
+            } else {
+                resetInspector();
+            }
+        }
+
+        function inspectOrganelle(key) {
+            selectedOrganelleKey = key;
+            const data = ORGANELLE_DATA[key];
+            if (!data) return;
+
+            document.getElementById('inspector-tag').textContent = data.tag;
+            document.getElementById('inspector-title').textContent = data.title;
+            document.getElementById('inspector-summary').textContent = data.summary;
+            document.getElementById('inspector-machinery').textContent = data.machinery;
+            document.getElementById('inspector-signals').textContent = data.signals;
+            document.getElementById('inspector-gtpase').textContent = data.gtpase;
+
+            // Pulse highlight on selected 3D organelle
+            Object.entries(organelleMeshes).forEach(([k, obj]) => {
+                obj.traverse(child => {
+                    if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                        child.material.emissiveIntensity = (k === key) ? 0.95 : 0.35;
+                    }
+                });
+            });
+        }
+
+        function resetInspector() {
+            selectedOrganelleKey = null;
+            document.getElementById('inspector-tag').textContent = "ENDOMEMBRANE";
+            document.getElementById('inspector-title').textContent = "Endomembrane System Overview";
+            document.getElementById('inspector-summary').textContent = "Click any 3D organelle in the viewport or select a pathway above to inspect molecular sorting machinery, coat complexes, and SNARE fusion dynamics.";
+            document.getElementById('inspector-machinery').textContent = "COPII, COPI, Clathrin, Kinesin-1 (+ end), Cytoplasmic Dynein (- end)";
+            document.getElementById('inspector-signals').textContent = "N-terminal Signal Peptide, Di-acidic (DxE), KDEL, KKXX, Mannose-6-Phosphate (M6P)";
+            document.getElementById('inspector-gtpase').textContent = "Sar1, ARF1, Rab1/Rab2, Rab6, Rab8/Rab27, Sec22b/Syntaxin-5, VAMP/SNAP-25";
+
+            Object.values(organelleMeshes).forEach(obj => {
+                obj.traverse(child => {
+                    if (child.isMesh && child.material && child.material.emissiveIntensity !== undefined) {
+                        child.material.emissiveIntensity = 0.35;
+                    }
+                });
+            });
+        }
+
+        function onCanvasClick(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                -((event.clientY - rect.top) / rect.height) * 2 + 1
+            );
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            const meshes = Object.values(organelleMeshes);
+            const intersects = raycaster.intersectObjects(meshes, true);
+
+            if (intersects.length > 0) {
+                let hit = intersects[0].object;
+                while (hit && !hit.userData.organelleKey) {
+                    hit = hit.parent;
+                }
+                if (hit && hit.userData.organelleKey) {
+                    inspectOrganelle(hit.userData.organelleKey);
+                }
+            }
+        }
+
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            document.getElementById('play-icon').textContent = isPlaying ? '❚❚ Pause' : '▶ Play';
+        }
+
+        function updateSpeed(val) {
+            simSpeed = parseFloat(val);
+            document.getElementById('speed-val').textContent = simSpeed.toFixed(1) + 'x';
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 14, 34);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+
+        function toggleLabels(checked) {
+            show3DLabels = checked;
+            document.getElementById('labels-layer').style.display = checked ? 'block' : 'none';
+        }
+
+        function update3DLabels() {
+            if (!show3DLabels) return;
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            labelAnchors.forEach(item => {
+                const pos = item.position.clone().project(camera);
+                // Hide if behind camera
+                if (pos.z > 1) {
+                    item.element.style.opacity = '0';
+                    return;
+                }
+                const x = (pos.x * 0.5 + 0.5) * width;
+                const y = (-(pos.y * 0.5) + 0.5) * height;
+
+                item.element.style.opacity = '1';
+                item.element.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (isPlaying) {
+                const time = clock.getElapsedTime();
+
+                // Gentle biological breathing / oscillation of organelles
+                if (organelleMeshes.eres) organelleMeshes.eres.rotation.y += delta * 0.6 * simSpeed;
+                if (organelleMeshes.lysosome) organelleMeshes.lysosome.rotation.y -= delta * 0.25 * simSpeed;
+
+                // Update Vesicle Flux along Splines
+                activeVesicles.forEach(v => {
+                    const isFocused = (currentPathway === 0 || currentPathway === v.pathway);
+                    v.mesh.visible = isFocused;
+
+                    if (isFocused) {
+                        v.progress += delta * v.speed * simSpeed;
+                        if (v.progress > 1) v.progress -= 1;
+
+                        const curve = curves[v.pathway];
+                        const pt = curve.getPointAt(v.progress);
+                        v.mesh.position.copy(pt);
+                        v.mesh.rotation.x += delta * 1.8 * simSpeed;
+                        v.mesh.rotation.y += delta * 2.2 * simSpeed;
+
+                        // Simulate coat shedding near target (progress > 0.78) & fusion expansion (> 0.94)
+                        if (v.pathway >= 2 && v.pathway <= 4 && v.mesh.children[1]) {
+                            v.mesh.children[1].visible = v.progress < 0.78; // Uncoating before SNARE docking
+                        }
+                        if (v.progress > 0.92) {
+                            const flare = 1 + (v.progress - 0.92) * 5;
+                            v.mesh.scale.setScalar(flare);
+                        } else {
+                            v.mesh.scale.setScalar(1);
+                        }
+                    }
+                });
+            }
+
+            controls.update();
+            update3DLabels();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            if (!container || container.clientWidth === 0) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        /**
+         * 4. INSTRUCTIONAL GUIDE QUIZ ENGINE
+         */
+        const QUIZ_QUESTIONS = [
+            {
+                q: "1. A soluble ER-resident chaperone (such as BiP) accidentally escapes in a COPII vesicle to the Cis-Golgi Network. Which molecular mechanism ensures its retrieval back to the ER?",
+                options: [
+                    "Mannose-6-Phosphate phosphorylation and Clathrin/AP-1 budding",
+                    "pH-dependent binding of its C-terminal KDEL motif to the KDEL receptor, triggering ARF1/COPI vesicle formation",
+                    "Sar1-GTP recruitment of Sec23/24 and minus-end Kinesin transport",
+                    "Dynamin-mediated scission at the Trans-Golgi Network"
+                ],
+                correct: 1,
+                explanation: "Correct! The mildly acidic lumen of the Cis-Golgi (~pH 6.7) increases KDEL receptor affinity for the C-terminal KDEL tetrapeptide, recruiting ARF1-GTP and COPI coatomer for retrograde retrieval."
+            },
+            {
+                q: "2. During anterograde vesicle budding at ER Exit Sites (ERES), which small GTPase inserts an amphipathic α-helix into the ER membrane upon activation by Sec12?",
+                options: [
+                    "Rab7-GTP",
+                    "Ran-GTP",
+                    "Sar1-GTP",
+                    "Dynamin-GTP"
+                ],
+                correct: 2,
+                explanation: "Correct! The ER transmembrane GEF Sec12 activates Sar1-GDP to Sar1-GTP, exposing its N-terminal amphipathic helix to deform the bilayer and recruit the Sec23/24 inner COPII coat."
+            },
+            {
+                q: "3. What would be the direct cellular consequence of a loss-of-function mutation in GlcNAc-1-phosphotransferase within the Cis-Golgi?",
+                options: [
+                    "Acid hydrolases fail to acquire Mannose-6-Phosphate tags and are secreted out of the cell via constitutive exocytosis (I-cell disease)",
+                    "Ribosomes fail to dock onto the Sec61 translocon",
+                    "COPI vesicles accumulate in the cytosol without uncoating",
+                    "Secretory vesicles fuse prematurely with the nuclear envelope"
+                ],
+                correct: 0,
+                explanation: "Correct! Without the Mannose-6-Phosphate (M6P) sorting tag, lysosomal hydrolases cannot bind M6P receptors in the TGN and instead follow the default constitutive secretory pathway out of the cell."
+            }
+        ];
+
+        let quizAnswered = {};
+
+        function renderQuiz() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = QUIZ_QUESTIONS.map((item, qIdx) => `
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4">
+                    <p class="text-xs sm:text-sm font-semibold text-slate-200 mb-3">${item.q}</p>
+                    <div class="space-y-2">
+                        ${item.options.map((opt, oIdx) => `
+                            <button onclick="answerQuiz(${qIdx}, ${oIdx})" id="q-${qIdx}-opt-${oIdx}" class="w-full text-left p-2.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 transition">
+                                <span class="font-mono text-cyan-400 mr-2">${String.fromCharCode(65 + oIdx)}.</span>${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="q-feedback-${qIdx}" class="hidden mt-3 p-3 rounded-lg text-xs leading-relaxed"></div>
+                </div>
+            `).join('');
+        }
+
+        function answerQuiz(qIdx, oIdx) {
+            const item = QUIZ_QUESTIONS[qIdx];
+            const isCorrect = (oIdx === item.correct);
+            quizAnswered[qIdx] = isCorrect;
+
+            // Style buttons
+            item.options.forEach((_, idx) => {
+                const btn = document.getElementById(`q-${qIdx}-opt-${idx}`);
+                btn.disabled = true;
+                btn.classList.remove('hover:bg-slate-800');
+                if (idx === item.correct) {
+                    btn.classList.add('border-emerald-500', 'bg-emerald-950/40', 'text-emerald-200');
+                } else if (idx === oIdx && !isCorrect) {
+                    btn.classList.add('border-rose-500', 'bg-rose-950/40', 'text-rose-200');
+                }
+            });
+
+            const fb = document.getElementById(`q-feedback-${qIdx}`);
+            fb.classList.remove('hidden');
+            fb.className = `mt-3 p-3 rounded-lg text-xs leading-relaxed border ${isCorrect ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/30 border-rose-500/40 text-rose-300'}`;
+            fb.textContent = isCorrect ? item.explanation : `Incorrect. ${item.explanation}`;
+
+            const score = Object.values(quizAnswered).filter(Boolean).length;
+            document.getElementById('quiz-score').textContent = `Score: ${score} / ${QUIZ_QUESTIONS.length}`;
+        }
+
+        /**
+         * 5. TECHNICAL PRESENTATION DECK (9 SLIDES)
+         */
+        const SLIDES = [
+            {
+                tag: "SLIDE 01 • CAPSTONE TITLE",
+                title: "Protein Sorting & Vesicular Transport in the Eukaryotic Endomembrane System",
+                subtitle: "An Interactive 3D Spatiotemporal Simulation for BIO 2 Cell & Molecular Biology",
+                bullets: [
+                    "Focus: Topological continuity, signal-mediated cargo selection, coat assembly, and SNARE fusion.",
+                    "Visualization Engine: Real-time WebGL / Three.js 3D cross-sectional cellular architecture.",
+                    "Pedagogical Goal: Bridge static textbook diagrams with dynamic molecular flux across 5 canonical pathways."
+                ]
+            },
+            {
+                tag: "SLIDE 02 • BIOLOGICAL SIGNIFICANCE",
+                title: "The Logistics Challenge of Eukaryotic Compartmentalization",
+                subtitle: "How ~10,000 distinct protein species reach exact organelle destinations",
+                bullets: [
+                    "Topological Equivalence: The lumens of the ER, Golgi, endosomes, and lysosomes are topologically equivalent to the extracellular space.",
+                    "Gated vs. Vesicular Transport: Nuclear pores mediate gated transport, whereas endomembrane organelles rely on budding transport vesicles.",
+                    "Fidelity Mechanisms: Triple-checkpoint verification via sorting signals, coat adaptors, and Rab/SNARE pairing."
+                ]
+            },
+            {
+                tag: "SLIDE 03 • PATHWAY 1: ER ENTRY",
+                title: "Co-Translational Translocation & Quality Control",
+                subtitle: "Signal Recognition Particle (SRP) & The Sec61 Translocon",
+                bullets: [
+                    "Signal Peptide Recognition: A 16–30 residue N-terminal hydrophobic core emerges from the 80S ribosome and binds SRP54.",
+                    "Elongation Arrest & Docking: SRP docks with the ER-resident SRP Receptor; reciprocal GTP hydrolysis transfers the nascent chain into the Sec61αβγ channel.",
+                    "Folding & ERAD: Luminal chaperones (BiP, Calnexin) assist folding; misfolded proteins are retro-translocated for proteasomal degradation (ERAD)."
+                ]
+            },
+            {
+                tag: "SLIDE 04 • PATHWAY 2: ANTEROGRADE",
+                title: "COPII-Mediated Export from ER Exit Sites (ERES)",
+                subtitle: "Sar1-GTP Activation & Polyhedral Cage Assembly",
+                bullets: [
+                    "Initiation: Transmembrane GEF Sec12 activates Sar1-GTP, inserting its amphipathic helix into the outer ER leaflet.",
+                    "Inner Coat Selection: Sec23 (Sar1 GAP) and Sec24 capture transmembrane cargo bearing di-acidic (DxE) motifs and cargo receptors (ERGIC-53).",
+                    "Outer Cage & Microtubule Motility: Sec13/Sec31 heterotetramers polymerize into a cuboctahedral cage; uncoated vesicles fuse into ERGIC and move via Dynein."
+                ]
+            },
+            {
+                tag: "SLIDE 05 • PATHWAY 3: RETROGRADE",
+                title: "COPI Retrieval & Dynamic Organelle Homeostasis",
+                subtitle: "KDEL Receptors & Cisternal Maturation",
+                bullets: [
+                    "Preventing ER Depletion: Escaped luminal proteins (BiP, PDI) carry a C-terminal Lys-Asp-Glu-Leu (KDEL) sequence.",
+                    "pH-Gated Capture: Lower pH in the Cis-Golgi triggers KDEL receptor binding, recruiting ARF1-GTP and heptameric COPI coatomer.",
+                    "Cisternal Maturation: COPI vesicles also transport Golgi-resident glycosyltransferases backward as cisternae mature from cis to trans."
+                ]
+            },
+            {
+                tag: "SLIDE 06 • PATHWAY 4: TGN & LYSOSOMES",
+                title: "Trans-Golgi Network (TGN) Sorting & Lysosomal Targeting",
+                subtitle: "Mannose-6-Phosphate (M6P) & Clathrin/Dynamin Scission",
+                bullets: [
+                    "Biochemical Tagging: Cis-Golgi GlcNAc-1-phosphotransferase phosphorylates mannose residues on soluble acid hydrolases.",
+                    "Clathrin Coat Assembly: M6P receptors bind hydrolases in the TGN and recruit GGA/AP-1 adaptors plus Clathrin triskelions.",
+                    "Dynamin Pinchase: Helical Dynamin polymers wrap around the vesicle neck and hydrolyze GTP to sever the membrane."
+                ]
+            },
+            {
+                tag: "SLIDE 07 • PATHWAY 5: EXOCYTOSIS & SNAREs",
+                title: "Target Specificity, Tethering & SNARE-Mediated Fusion",
+                subtitle: "Overcoming the Energetic Barrier of Lipid Bilayer Repulsion",
+                bullets: [
+                    "Rab GTPase Identity Codes: Distinct Rabs (Rab1, Rab5, Rab7, Rab8) recruit long coiled-coil tethers and multisubunit complexes (Exocyst, HOPS).",
+                    "SNARE Zippering: Vesicle v-SNAREs (e.g., VAMP) intertwine with target t-SNAREs (Syntaxin + SNAP-25) into a stable trans-SNARE 4-helix bundle.",
+                    "NSF Recycling: Post-fusion cis-SNARE complexes are unwound by the ATPase NSF and α-SNAP."
+                ]
+            },
+            {
+                tag: "SLIDE 08 • TECHNICAL ARCHITECTURE",
+                title: "3D Visualization & Software Engineering Design",
+                subtitle: "Single-File WebGL Architecture for Zero-Friction Deployment",
+                bullets: [
+                    "Procedural Geometry: Custom vertex-deformed BoxGeometries for curved Golgi/RER cisternae and wireframe Icosahedrons for protein cages.",
+                    "Parametric Spline Kinematics: CatmullRomCurve3 trajectories simulate steady-state vesicular flux, uncoating, and fusion expansion.",
+                    "Interactive Raycasting: Real-time 3D-to-2D HTML label projection and click-to-inspect molecular panels."
+                ]
+            },
+            {
+                tag: "SLIDE 09 • CLINICAL RELEVANCE & REFERENCES",
+                title: "Pathologies of Vesicular Trafficking & Capstone References",
+                subtitle: "Connecting Molecular Defects to Human Disease",
+                bullets: [
+                    "I-Cell Disease (Mucolipidosis II): Defective M6P tagging leads to extracellular secretion of lysosomal enzymes and inclusion bodies.",
+                    "Chylomicron Retention Disease: Mutations in SAR1B block COPII assembly in enterocytes.",
+                    "Primary References: Alberts et al., Molecular Biology of the Cell (7th Ed., Ch. 13); Lodish et al., Molecular Cell Biology (9th Ed., Ch. 14)."
+                ]
+            }
+        ];
+
+        let currentSlide = 0;
+
+        function renderSlide() {
+            const s = SLIDES[currentSlide];
+            document.getElementById('slide-content').innerHTML = `
+                <span class="inline-block text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-4">${s.tag}</span>
+                <h2 class="text-2xl sm:text-3xl font-bold text-white leading-tight">${s.title}</h2>
+                <p class="text-sm sm:text-base text-cyan-300/90 font-medium mt-2 mb-6">${s.subtitle}</p>
+                <div class="space-y-3.5 bg-slate-950/70 border border-slate-800/90 rounded-xl p-5">
+                    ${s.bullets.map(b => {
+                        const parts = b.split(':');
+                        return `<div class="flex items-start gap-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 mt-1.5 shrink-0"></span>
+                            <span><strong class="text-white">${parts[0]}:</strong>${parts.slice(1).join(':')}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `;
+
+            document.getElementById('slide-indicator').textContent = `SLIDE ${currentSlide + 1} / ${SLIDES.length}`;
+            document.getElementById('btn-prev-slide').disabled = currentSlide === 0;
+            document.getElementById('btn-next-slide').disabled = currentSlide === SLIDES.length - 1;
+
+            // Update dots
+            document.getElementById('slide-dots').innerHTML = SLIDES.map((_, idx) => `
+                <button onclick="goToSlide(${idx})" class="h-2 rounded-full transition-all ${idx === currentSlide ? 'w-6 bg-cyan-400' : 'w-2 bg-slate-700 hover:bg-slate-500'}"></button>
+            `).join('');
+        }
+
+        function nextSlide() {
+            if (currentSlide < SLIDES.length - 1) {
+                currentSlide++;
+                renderSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide();
+            }
+        }
+
+        function goToSlide(idx) {
+            currentSlide = idx;
+            renderSlide();
+        }
+
+        // Keyboard arrow navigation for presentation tab
+        window.addEventListener('keydown', (e) => {
+            if (!document.getElementById('view-presentation').classList.contains('hidden')) {
+                if (e.key === 'ArrowRight') nextSlide();
+                if (e.key === 'ArrowLeft') prevSlide();
+            }
+        });
+
+        /**
+         * 6. TAB SWITCHING & SOURCE CODE VIEWER / EXPORT
+         */
+        function switchTab(tabName) {
+            const views = ['simulation', 'guide', 'presentation', 'code'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const btn = document.getElementById(`tab-${v}`);
+                if (v === tabName) {
+                    el.classList.remove('hidden');
+                    btn.classList.add('bg-cyan-600', 'text-white', 'shadow-sm');
+                    btn.classList.remove('text-slate-400', 'hover:text-slate-200');
+                } else {
+                    el.classList.add('hidden');
+                    btn.classList.remove('bg-cyan-600', 'text-white', 'shadow-sm');
+                    btn.classList.add('text-slate-400', 'hover:text-slate-200');
+                }
+            });
+
+            if (tabName === 'simulation') {
+                setTimeout(onWindowResize, 50);
+            } else if (tabName === 'code') {
+                populateSourceViewer();
+            }
+        }
+
+        function populateSourceViewer() {
+            const display = document.getElementById('source-code-display');
+            if (!display.textContent) {
+                display.textContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            }
+        }
+
+        function copySourceCode() {
+            const fullSource = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const textarea = document.createElement('textarea');
+            textarea.value = fullSource;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            const btn = document.getElementById('btn-copy-code');
+            btn.textContent = "✓ Copied!";
+            setTimeout(() => { btn.textContent = "Copy Source"; }, 2000);
+        }
+
+        function downloadSourceCode() {
+            const fullSource = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([fullSource], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'BIO2_Protein_Sorting_Capstone_3D.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        /**
+         * 7. INITIALIZE ALL MODULES ON WINDOW LOAD
+         */
+        window.onload = function () {
+            initThreeJS();
+            renderQuiz();
+            renderSlide();
+        };
+    </script>
+</body>
+</html>
